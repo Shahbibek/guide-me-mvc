@@ -1,0 +1,134 @@
+protected void Button6_Click(object sender, EventArgs e)
+        {
+            PhysicalAddress macAddress = GetClientMAC(GetUserIpAddress());
+            string text_test = macAddress.ToString();
+        }
+
+        
+        public string GetUserIpAddress(bool Lan = false)
+        {
+            string userIPAddress = Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
+
+            if (string.IsNullOrEmpty(userIPAddress))
+            {
+                userIPAddress = Request.ServerVariables["REMOTE_ADDR"];
+            }
+            if (string.IsNullOrEmpty(userIPAddress))
+            {
+                userIPAddress = Request.UserHostAddress;
+            }
+
+            if(string.IsNullOrEmpty(userIPAddress) || userIPAddress.Trim() == "::1")
+            {
+                Lan = true;
+                userIPAddress = string.Empty;
+            }
+
+            if (Lan)
+            {
+                if (string.IsNullOrEmpty(userIPAddress))
+                {
+                    string Hostname = Dns.GetHostName();
+
+                    IPHostEntry iPHostEntry = Dns.GetHostEntry(Hostname);
+
+                    System.Net.IPAddress[] arrIpAddress = iPHostEntry.AddressList;
+
+                    try
+                    {
+                        foreach (IPAddress iPAddress in arrIpAddress)
+                        {
+                            if(iPAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                            {
+                                userIPAddress = iPAddress.ToString();
+                            }
+                        }
+
+                        if (string.IsNullOrEmpty(userIPAddress))
+                        {
+                            userIPAddress = arrIpAddress[arrIpAddress.Length- 1].ToString();
+                        }
+                    }
+                    catch (Exception)
+                    {
+
+                        try
+                        {
+                            userIPAddress = arrIpAddress[0].ToString();
+                        }
+                        catch (Exception)
+                        {
+
+                            try
+                            {
+                                arrIpAddress = Dns.GetHostAddresses(Hostname);
+                                userIPAddress = arrIpAddress[0].ToString();
+                            }
+                            catch (Exception)
+                            {
+                                // local address 
+                                userIPAddress = "127.0.0.1";
+                            }
+                        }
+                    }
+                }
+            }
+
+            return userIPAddress;
+        }
+
+        [DllImport("Iphlpapi.dll")]
+        private static extern int SendARP(Int32 dest, Int32 host, ref Int64 mac, ref Int32 length);
+        [DllImport("Ws2_32.dll")]
+        private static extern Int32 inet_addr(string ip);
+
+        //private static string GetClientMAC(string strClientIP)
+        //{
+            
+        //    IPAddress ipAddress = IPAddress.Parse(strClientIP);
+        //    IPHostEntry hostEntry = Dns.GetHostEntry(ipAddress);
+
+        //    foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+        //    {
+        //        var properties = networkInterface.GetIPProperties();
+
+        //        foreach (var address in properties.UnicastAddresses)
+        //        {
+        //            if (address.Address.Equals(ipAddress))
+        //            {
+        //                try
+        //                {
+        //                    return networkInterface.GetPhysicalAddress().ToString();
+        //                }
+        //                catch (Exception ex)
+        //                {
+
+        //                    ex.Message.ToString();
+        //                }
+                        
+        //            }                   
+        //        }
+        //    }
+            
+        //    return null;
+        //}
+        private static PhysicalAddress GetClientMAC(string strClientIP)
+        {
+            IPAddress ipAddress = IPAddress.Parse(strClientIP);
+            IPHostEntry hostEntry = Dns.GetHostEntry(ipAddress);
+
+            foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                var properties = networkInterface.GetIPProperties();
+
+                foreach (var address in properties.UnicastAddresses)
+                {
+                    if (address.Address.Equals(ipAddress))
+                    {
+                        return networkInterface.GetPhysicalAddress();
+                    }
+                }
+            }
+
+            return null; 
+        }
